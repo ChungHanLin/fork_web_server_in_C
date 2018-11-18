@@ -10,22 +10,20 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include "socket.h"
 
 #define PORT_NUM 8000
 #define BUFFER_SIZE 4096
 #define BACKLOG_NUM 5
 
-int getSocketFD(void);
 
 void write_Protocol(char *);
 char *get_time(char *);
 int get_Request(char *response);
 
-void init_Server(struct sockaddr_in *);
 void bind_Server(int, struct sockaddr_in *);
 void listen_Server(int);
 void signal_Action(int ,struct sigaction *);
-
 int accept_Client(int, struct sockaddr_in *);
 void socket_Handler(int, char *, int);
 
@@ -44,7 +42,7 @@ int main(int argc, char *argv[]){
 
 	replyLength = get_Request(response);
 	
-	init_Server(&serverInfo);
+	init_Socket(&serverInfo, NULL);
 
 	bind_Server(serverSocket, &serverInfo);
 
@@ -56,6 +54,8 @@ int main(int argc, char *argv[]){
 		int pid;
 
 		clientSocket = accept_Client(serverSocket, &clientInfo);
+
+		fprintf(stderr, "execute\n");
 
 		pid = fork();
 
@@ -75,18 +75,6 @@ int main(int argc, char *argv[]){
 
 	close(serverSocket);
 	return 0;
-}
-
-int getSocketFD(void){
-	int socketFD;
-
-	socketFD = socket(AF_INET, SOCK_STREAM, 0);
-
-	if(socketFD == -1){
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-	return socketFD;
 }
 
 char *get_time(char *c_time_string){
@@ -134,13 +122,6 @@ int get_Request(char *response){
 	return length;
 }
 
-void init_Server(struct sockaddr_in *serverInfo){
-
-	serverInfo->sin_family = AF_INET;
-	serverInfo->sin_addr.s_addr = INADDR_ANY;
-	serverInfo->sin_port = htons(PORT_NUM);
-}
-
 void bind_Server(int socketFD, struct sockaddr_in *serverInfo){
 
 	if(bind(socketFD, (struct sockaddr *) serverInfo, sizeof(struct sockaddr_in)) == -1){
@@ -186,10 +167,12 @@ int accept_Client(int serverSocketFD, struct sockaddr_in *clientInfo){
 	}
 }
 
-void socket_Handler(int socketFD, char *response, int length){
-
+void socket_Handler(int socketFD, char *response, int messageLength){
+	
 	char recieve[BUFFER_SIZE];
 
-	send(socketFD, response, length, 0);
 	recv(socketFD, recieve, BUFFER_SIZE, 0);
+	send(socketFD, response, messageLength, 0);
+	printf("Recieve:\n%s\n", recieve);
+	return;
 }
